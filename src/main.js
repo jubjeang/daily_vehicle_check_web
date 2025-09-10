@@ -3,9 +3,11 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import '@fortawesome/fontawesome-free/js/all'
 
-const app = createApp(App)
 
-app.use(router)
+createApp(App).use(router).mount('#app')
 
-app.mount('#app')
+// const app = createApp(App)
+// app.use(router)
+// app.mount('#app')
