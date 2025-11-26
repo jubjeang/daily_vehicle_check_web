@@ -3,7 +3,6 @@
     <header class="header">
       <img src="/images/gfcth.png" alt="GFCS Logo" class="logo" />
     </header>
-
     <main class="main">
       <section class="form-section">
         <h2 class="title">Daily Vehicle Usage and Checking</h2>
@@ -16,10 +15,7 @@
             <div class="row">
               <div class="label-col">Username</div>
               <div class="control-col">
-                <div class="control" :class="{
-                  'is-disabled': isLoading,
-                  'is-invalid': !!usernameErr
-                }">
+                <div class="control" :class="{ 'is-disabled': isLoading, 'is-invalid': !!usernameErr }">
                   <span class="ctrl-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18">
                       <path fill="currentColor"
@@ -38,10 +34,7 @@
             <div class="row">
               <div class="label-col">Password</div>
               <div class="control-col">
-                <div class="control" :class="{
-                  'is-disabled': isLoading,
-                  'is-invalid': !!passwordErr
-                }">
+                <div class="control" :class="{ 'is-disabled': isLoading, 'is-invalid': !!passwordErr }">
                   <span class="ctrl-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18">
                       <path fill="currentColor"
@@ -111,7 +104,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'   // ⬅️ ใช้ router/route
 import axios from 'axios'
+
+const router = useRouter()
+const route = useRoute()
 
 const username = ref('')
 const password = ref('')
@@ -206,16 +203,13 @@ function validateInputs() {
     showNiceError('กรุณากรอกรหัสผ่าน')
     return false
   }
-  username.value = u // trim แล้วค่อยเก็บ
+  username.value = u
   return true
 }
 
 const handleLogin = async () => {
   if (isLoading.value) return
-
-  // ✅ ตรวจ input ก่อนยิง API
   if (!validateInputs()) {
-    // โฟกัสไปช่องแรกที่ผิด
     if (usernameErr.value) {
       document.getElementById('username')?.focus()
     } else if (passwordErr.value) {
@@ -230,7 +224,7 @@ const handleLogin = async () => {
 
   const minLoad = sleep(350)
 
-  // 1) AUTH
+  // 1) AUTH (AD)
   try {
     const res = await axios.post(
       import.meta.env.VITE_API_APP_URL + '/auth_ad',
@@ -250,20 +244,32 @@ const handleLogin = async () => {
     return
   }
 
-  // 2) GETUSER
+  // 2) GETUSER (แปลงผลลัพธ์ให้เป็น object เสมอ)
   try {
+    const APP_ID = import.meta.env.VITE_APP_ID // ✅ ต้องขึ้นต้นด้วย VITE_
     const resUser = await axios.post(
       import.meta.env.VITE_API_VALIDATE_USER_URL + '/getuserinfo',
-      { username: username.value, password: password.value }
+      { username: username.value, password: password.value, app_id: APP_ID }
     )
-    const users = resUser.data
-    if (!Array.isArray(users) || users.length === 0 || !users[0]?.username) {
+
+    // normalize: รองรับ object / [obj] / [[obj]]
+    const raw = resUser.data
+    const user = Array.isArray(raw)
+      ? (Array.isArray(raw[0]) ? raw[0][0] : raw[0])
+      : raw
+
+    if (!user?.username) {
       await minLoad
       isLoading.value = false
       showNiceError('ชื่อผู้ใช้ยังไม่ถูกลงทะเบียนในระบบ')
       return
     }
-    localStorage.setItem('user', JSON.stringify(users[0]))
+
+    // ✅ เก็บข้อมูลผู้ใช้ + token
+    localStorage.setItem('user', JSON.stringify(user))
+    const opaqueToken = `ok.${Date.now().toString(36)}.${encodeURIComponent(user.username)}`
+    localStorage.setItem('authToken', opaqueToken)
+
   } catch (err) {
     await minLoad
     const info = extractErrorShape(err)
@@ -273,11 +279,19 @@ const handleLogin = async () => {
   }
 
   await minLoad
-  window.location.href = '/main'
+  isLoading.value = false
+
+  // debug เล็กน้อย
+  console.log('authToken =', localStorage.getItem('authToken'))
+  console.log('user =', localStorage.getItem('user'))
+
+  // ✅ redirect กลับหน้าที่ตั้งไว้ (หรือ /main)
+  const redirect = (route.query.redirect && String(route.query.redirect)) || '/main'
+  router.replace(redirect)
 }
+
 </script>
 
-<style></style>
 
 <style scoped>
 /* ===== Base layout ===== */

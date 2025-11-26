@@ -23,7 +23,7 @@
           <!-- Table -->
           <div class="card table-card">
             <div class="table-head">
-              <h2 class="subtitle">Vehicle Records</h2>
+              <h2 class="subtitle">ข้อมูลรถ</h2>
               <div class="table-meta">
                 <span>ทั้งหมด {{ total.toLocaleString() }} รายการ</span>
               </div>
@@ -370,6 +370,18 @@ import axios from 'axios'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import * as XLSX from 'xlsx-js-style'   // ใช้ static import
+import { useRouter } from 'vue-router'   // ⬅️ ใช้ router/route
+const router = useRouter();
+const hasLocalStorage = ref(null)
+//-----check session
+hasLocalStorage.value = window.localStorage.getItem('user')
+if (
+  hasLocalStorage.value === 'null' ||
+  hasLocalStorage.value === null ||
+  hasLocalStorage.value === ''
+) {
+  router.push('/')
+}//-----end check session
 
 /* ---------- state ---------- */
 const searchQuery = ref('')
@@ -389,6 +401,8 @@ const FILES_BASE = (import.meta.env.VITE_FILES_BASE_URL || `${API_BASE}/upload_f
 /* ===== Footer wording ===== */
 const FOOTER_LEFT_TEXT = 'แบบฟอร์มนี้ใช้แทนที่แบบฟอร์มฉบับก่อนหน้า'
 const FOOTER_RIGHT_TEXT = 'CSS-LOG-001-02'
+
+
 
 /* ---------- computed & helpers ---------- */
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -822,40 +836,66 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
-
-
 <style scoped>
 /* (สไตล์ UI เดิมทั้งหมด ไม่แตะส่วนอื่น) */
-
-
-/* Layout */
-.dashboard {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden
+/* ✅ บังคับให้ container เต็มจริง และชนะสไตล์ global ถ้ามี */
+.dashboard>.page>.container {
+  width: 100vw;
+  max-width: none !important;
+  /* กันโดนจำกัดจาก global */
+  margin: 0 !important;
+  /* กันโดนจัดกึ่งกลาง */
+  padding-left: 0;
+  /* ตัดขอบซ้าย/ขวาเดสก์ท็อป */
+  padding-right: 0;
+  padding-top: clamp(12px, 2vw, 24px);
+  padding-bottom: clamp(12px, 2vw, 24px);
 }
 
+.dashboard {
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✅ ให้คอนเทนต์ข้างใน “ไม่มีกรอบ” และไหลเต็มความกว้าง */
+.content-narrow {
+  display: contents;
+  /* ยกเลิกกล่องหุ้ม แต่ยังเก็บลูก ๆ ไว้ */
+}
+
+/* ✅ กัน overflow แนวนอนที่อาจเกิดจากสกอร์บาร์ */
 .page {
   flex: 1;
-  width: 100%;
-  display: block
+  width: 100vw;
+  overflow-x: hidden;
 }
 
 .container {
   width: 100%;
   margin: 0 auto;
-  padding: clamp(12px, 2vw, 24px)
+  padding: clamp(12px, 2vw, 24px);
 }
 
-.content-narrow {
-  max-width: clamp(1100px, 96vw, 2280px);
-  margin: 8px auto 0
+/* 📱 มือถือ: คงระยะขอบ เพื่อไม่ให้ชิดขอบจอเกินไป */
+@media (max-width: 640px) {
+  .dashboard>.page>.container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .content-narrow {
+    display: block;
+    /* มือถือให้กลับเป็นบล็อกปกติ */
+    width: 100%;
+    margin: 8px auto 0;
+  }
 }
 
 .title {
   color: #1a8d5b;
-  margin: 8px 0 6px;
+  margin: 1px 8px 0 6px;
+  margin-left: 0.5em;
   font-size: clamp(20px, 2.4vw, 28px);
   font-weight: 700;
   display: flex;
@@ -874,7 +914,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   justify-content: flex-end;
   gap: 8px;
   align-items: center;
-  margin: 6px 0 10px
+  margin: 6px 0 10px;
+  margin-right: 1em;
 }
 
 .toolbar input {
@@ -908,11 +949,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   cursor: not-allowed
 }
 
+.card {
+  margin-left: 1em;
+  margin-right: 1em;
+  width: 97vw;
+}
+
+
 /* Table */
 .table-card {
   margin-top: 6px;
   overflow-x: auto
 }
+
 
 .table-head {
   display: flex;
@@ -947,77 +996,7 @@ table {
 
 /* ====== คงสไตล์เดิมทั้งหมดด้านล่าง (ตัดออกเพื่อย่นข้อความ) ====== */
 
-.page {
-  flex: 1;
-  width: 100%;
-  display: block
-}
 
-.container {
-  width: 100%;
-  margin: 0 auto;
-  padding: clamp(12px, 2vw, 24px)
-}
-
-.content-narrow {
-  max-width: clamp(1100px, 96vw, 2280px);
-  margin: 8px auto 0
-}
-
-.title {
-  color: #1a8d5b;
-  margin: 8px 0 6px;
-  font-size: clamp(20px, 2.4vw, 28px);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 10px
-}
-
-.title i {
-  font-size: 1.6em;
-  color: #1a8d5b
-}
-
-/* Toolbar */
-.toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  align-items: center;
-  margin: 6px 0 10px
-}
-
-.toolbar input {
-  width: min(320px, 45vw);
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px
-}
-
-.btn {
-  background: #1a8d5b;
-  color: #fff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer
-}
-
-.btn:hover {
-  background: #146c46
-}
-
-.btn.ghost {
-  background: #fff;
-  color: #1a8d5b;
-  border: 1px solid #1a8d5b
-}
-
-.btn.ghost:disabled {
-  opacity: .5;
-  cursor: not-allowed
-}
 
 /* Table */
 .table-card {
@@ -1044,15 +1023,7 @@ table {
   color: #666
 }
 
-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, .05)
-}
+
 
 col.col-charlie {
   width: 10%

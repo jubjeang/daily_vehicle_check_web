@@ -1,25 +1,49 @@
+<!-- src/views/MainPage.vue -->
 <template>
   <div class="dashboard">
     <TopNav />
     <main class="page">
       <section class="container">
+        <!-- ⭐⭐⭐ NEW: ตารางด้านบน ⭐⭐⭐ -->
+        <div class="top-table-section">
+          <table class="top-table">
+            <thead>
+              <tr>
+                <th>รถทั้งหมด</th>
+                <th>รถออกปฎิบัติงาน</th>
+                <th>รถไม่ได้ใช้งาน</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ summary.totalVehicles }}</td>
+                <td>{{ summary.usedVehicles }}</td>
+                <td>{{ summary.unusedVehicles }}</td>
+              </tr>
+              <tr>
+                <!-- <td>รายงานสรุปรายเดือน</td> -->
+                <th>รายงานสรุปรายเดือน</th>
+                <th>รายงานการแจ้งปัญหาของรถ</th>
+                <th>รายงานสรุปรายเดือน</th>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- ⭐⭐⭐ END NEW ⭐⭐⭐ -->
         <h1 class="title">
           <i class="fa-solid fa-chart-column"></i>
           Dashboard
         </h1>
-
         <div class="grid charts-section">
-          <!-- กราฟแท่ง -->
           <div class="card">
             <div class="chart-wrap">
               <canvas ref="barRef" aria-label="Top 5 รายการที่มีสถานะผิดปกติ (Abnormal/None)"></canvas>
             </div>
           </div>
 
-          <!-- กราฟโดนัท -->
           <div class="card">
             <div class="chart-wrap">
-              <canvas ref="donutRef" aria-label="Top 5 รถที่ใช้บ่อย)"></canvas>
+              <canvas ref="donutRef" aria-label="Top 5 รถที่ใช้บ่อย"></canvas>
             </div>
           </div>
         </div>
@@ -40,12 +64,25 @@ import {
   DoughnutController, ArcElement,
   Tooltip, Legend, Title,
 } from 'chart.js'
+import { useRouter } from 'vue-router'
+const router = useRouter();
+const hasLocalStorage = ref(null)
+//-----check session
+hasLocalStorage.value = window.localStorage.getItem('user')
+if (
+  hasLocalStorage.value === 'null' ||
+  hasLocalStorage.value === null ||
+  hasLocalStorage.value === ''
+) {
+  router.push('/')
+}//-----end check session
 
 Chart.register(
   BarController, BarElement, CategoryScale, LinearScale,
   DoughnutController, ArcElement, Tooltip, Legend, Title,
 )
 
+// --- Plugin: แสดงตัวเลขบนกราฟ ---
 const valueLabelPlugin = {
   id: 'valueLabel',
   afterDatasetsDraw: chart => {
@@ -55,7 +92,6 @@ const valueLabelPlugin = {
     ctx.fillStyle = '#374151'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
-
     chart.data.datasets.forEach((dataset, di) => {
       const meta = chart.getDatasetMeta(di)
       meta.data.forEach((el, i) => {
@@ -63,9 +99,7 @@ const valueLabelPlugin = {
         if (val == null) return
         const pos = el.tooltipPosition()
         const topGuard = chartArea.top + 14
-        const y = chart.config.type === 'bar'
-          ? Math.max(pos.y - 12, topGuard)
-          : pos.y
+        const y = chart.config.type === 'bar' ? Math.max(pos.y - 12, topGuard) : pos.y
         ctx.fillText(String(val), pos.x, y)
       })
     })
@@ -74,23 +108,20 @@ const valueLabelPlugin = {
 }
 Chart.register(valueLabelPlugin)
 
+// --- Refs / Instances ---
 const barRef = ref(null)
 const donutRef = ref(null)
-
 let barChart = null
 let donutChart = null
 
+// --- UI helpers ---
 const colors = ['#1a8d5b', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6']
-
-// ===== helpers =====
 const isMobile = () => window.matchMedia('(max-width: 640px)').matches
 const wrapLabel = (str, maxLen = 14) =>
-  !str ? '' : Array.from({ length: Math.ceil(str.length / maxLen) },
-    (_, i) => str.slice(i * maxLen, (i + 1) * maxLen)
-  )
-const shorten = (str, max = 22) =>
-  (str?.length > max ? str.slice(0, max - 1) + '…' : str)
+  !str ? '' : Array.from({ length: Math.ceil(str.length / maxLen) }, (_, i) => str.slice(i * maxLen, (i + 1) * maxLen))
+const shorten = (str, max = 22) => (str?.length > max ? str.slice(0, max - 1) + '…' : str)
 
+// --- Fetch data (ไม่พก Authorization header ให้โค้ดสะอาดสุด) ---
 const fetchTop5 = async () => {
   const res = await fetch(import.meta.env.VITE_API_APP_URL + '/top5-abnormal')
   if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ')
@@ -99,25 +130,21 @@ const fetchTop5 = async () => {
 const fetchTopVehicleUsed = async () => {
   const res = await fetch(import.meta.env.VITE_API_APP_URL + '/top_Vehicle_used')
   if (!res.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ')
-  const data = await res.json()        // { labels, counts, total }
+  const data = await res.json()
   return {
     labels: Array.isArray(data?.labels) ? data.labels : [],
     counts: Array.isArray(data?.counts) ? data.counts : []
   }
 }
 
-
+// --- Chart builders ---
 const makeBarChart = (canvas, labels, counts) => {
   if (barChart) barChart.destroy()
-
-  const maxVal = Math.max(...counts)
+  const maxVal = Math.max(...counts, 0)
   const pad = Math.max(3, Math.ceil(maxVal * 0.12))
-
   const mobile = isMobile()
   const originalLabels = [...labels]
-  const displayLabels = mobile
-    ? labels.map(l => shorten(l, 28))
-    : labels.map(l => wrapLabel(l, 14))
+  const displayLabels = mobile ? labels.map(l => shorten(l, 28)) : labels.map(l => wrapLabel(l, 14))
 
   barChart = new Chart(canvas, {
     type: 'bar',
@@ -128,7 +155,7 @@ const makeBarChart = (canvas, labels, counts) => {
         data: counts,
         backgroundColor: colors[0],
         borderRadius: 8,
-        maxBarThickness: mobile ? 22 : 56,
+        maxBarThickness: mobile ? 22 : 56
       }]
     },
     options: {
@@ -138,7 +165,7 @@ const makeBarChart = (canvas, labels, counts) => {
       plugins: {
         title: {
           display: true,
-          text: 'Top 5 รายการที่มีสถานะผิดปกติ (Abnormal/None)',
+          text: 'Top 5 รายการที่มีสถานะผิดปกติของรถ',
           padding: { top: 8, bottom: 12 },
           font: { size: mobile ? 13 : 14, weight: 'bold' }
         },
@@ -157,21 +184,8 @@ const makeBarChart = (canvas, labels, counts) => {
           ? { ticks: { precision: 0, padding: 6 }, grid: { drawTicks: false } }
           : { ticks: { maxRotation: 0, autoSkip: false, padding: 6 } },
         y: mobile
-          ? {
-            ticks: {
-              autoSkip: false,
-              maxRotation: 0,
-              font: { size: 10 },
-              padding: 4
-            },
-            grid: { drawTicks: false }
-          }
-          : {
-            beginAtZero: true,
-            suggestedMax: maxVal + pad,
-            ticks: { precision: 0, padding: 6 },
-            grid: { drawTicks: false }
-          }
+          ? { ticks: { autoSkip: false, maxRotation: 0, font: { size: 10 }, padding: 4 }, grid: { drawTicks: false } }
+          : { beginAtZero: true, suggestedMax: maxVal + pad, ticks: { precision: 0, padding: 6 }, grid: { drawTicks: false } }
       }
     }
   })
@@ -179,19 +193,12 @@ const makeBarChart = (canvas, labels, counts) => {
 
 const makeDonutChart = (canvas, labelsInput, countsInput) => {
   if (donutChart) donutChart.destroy()
-
   const labels = Array.isArray(labelsInput) ? labelsInput : []
   const counts = Array.isArray(countsInput) ? countsInput : []
 
   donutChart = new Chart(canvas, {
     type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{
-        data: counts,
-        backgroundColor: counts.map((_, i) => colors[i % colors.length]),
-      }]
-    },
+    data: { labels, datasets: [{ data: counts, backgroundColor: counts.map((_, i) => colors[i % colors.length]) }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -203,10 +210,7 @@ const makeDonutChart = (canvas, labelsInput, countsInput) => {
           padding: { top: 8, bottom: 12 },
           font: { size: isMobile() ? 13 : 14, weight: 'bold' }
         },
-        legend: {
-          position: 'bottom',
-          labels: { boxWidth: 10, font: { size: isMobile() ? 10 : 12 } }
-        },
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: isMobile() ? 10 : 12 } } },
         tooltip: {
           callbacks: {
             label: ctx => {
@@ -222,7 +226,20 @@ const makeDonutChart = (canvas, labelsInput, countsInput) => {
     }
   })
 }
+const summary = ref({
+  totalVehicles: 0,
+  usedVehicles: 0,
+  unusedVehicles: 0
+});
 
+const fetchSummary = async () => {
+  const res = await fetch(import.meta.env.VITE_API_APP_URL + '/api/dashboard/summary');
+  if (!res.ok) throw new Error('โหลด summary ล้มเหลว');
+  summary.value = await res.json();
+};
+
+
+// --- Lifecycle ---
 onMounted(async () => {
   try {
     const { labels, counts } = await fetchTop5()
@@ -236,7 +253,8 @@ onMounted(async () => {
       makeDonutChart(donutRef.value, donutLabels, donutCounts)
     }
     window.addEventListener('resize', onResize)
-    barRef.value._onResize = onResize
+    barRef.value && (barRef.value._onResize = onResize)
+    await fetchSummary();
   } catch (err) {
     console.error(err)
   }
@@ -245,12 +263,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (barChart) barChart.destroy()
   if (donutChart) donutChart.destroy()
-  if (barRef.value._onResize) window.removeEventListener('resize', barRef.value._onResize)
+  if (barRef.value?._onResize) window.removeEventListener('resize', barRef.value._onResize)
 })
 </script>
 
 <style scoped>
-/* ===== Layout base คงเดิม ===== */
+/* ===== Layout base ===== */
 .dashboard {
   min-height: 100dvh;
   display: flex;
@@ -259,13 +277,48 @@ onBeforeUnmount(() => {
 
 .page {
   flex: 1;
-  width: 100%;
+  width: 100vw;
+  ;
 }
 
 .container {
   width: 100%;
   margin: 0 auto;
   padding: clamp(12px, 2vw, 24px);
+}
+
+/* ⭐ NEW: style ตารางด้านบน ⭐ */
+.top-table-section {
+  margin-top: 10px;
+  margin-bottom: 25px;
+}
+
+.top-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.top-table th {
+  background: #15eda5;
+  color: white;
+  font-weight: 600;
+  padding: 10px 8px;
+  font-size: 13px;
+}
+
+.top-table td {
+  padding: 10px 6px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.top-table tr:last-child td {
+  border-bottom: none;
 }
 
 .title {
@@ -284,37 +337,29 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
-/* ===== ปรับความสูงการ์ดเพื่อให้กราฟกินพื้นที่แนวตั้งมากขึ้น ===== */
+/* ===== Card height for charts ===== */
 .card {
   background: #fff;
   border-radius: 16px;
   padding: clamp(12px, 2vw, 16px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, .06);
-
-  /* เดิม: min-height: clamp(260px, 36vh, 420px);  */
-  /* ใหม่: ให้สูงขึ้นแบบยืดหยุ่นตามจอ */
   min-height: clamp(380px, 52vh, 680px);
-
   display: flex;
 }
 
-/* ให้แคนวาสกินพื้นที่เต็มการ์ด */
 .chart-wrap {
   position: relative;
   width: 100%;
   height: 100%;
   min-height: inherit;
-  /* ยึดความสูงจาก .card */
 }
 
-/* จอใหญ่ให้สูงขึ้นอีกนิดเพื่อเก็บ label/legend สบาย ๆ */
 @media (min-width: 1280px) {
   .card {
     min-height: clamp(460px, 58vh, 760px);
   }
 }
 
-/* มือถือ: คุมให้พอดีตา */
 @media (max-width: 640px) {
   .card {
     min-height: 420px;

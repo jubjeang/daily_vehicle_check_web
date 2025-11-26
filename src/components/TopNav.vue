@@ -6,16 +6,16 @@
           <img src="/images/gfcth.png" alt="GFCS" class="logo" />
         </router-link>
       </div>
+
       <!-- Desktop menu -->
       <nav class="menu-desktop">
         <RouterLink to="/main" class="link" :class="{ active: isActive('/main') }">Dashboard</RouterLink>
         <RouterLink to="/tracking" class="link" :class="{ active: isActive('/tracking') }">Tracking</RouterLink>
+        <RouterLink to="/manual" class="link" :class="{ active: isActive('/manual') }">Manual</RouterLink> <!-- ✅ -->
         <!-- <RouterLink to="/report" class="link" :class="{ active: isActive('/report') }">Report</RouterLink> -->
       </nav>
 
       <div class="right">
-        <!-- ✅ Desktop only -->
-        <!-- Desktop only -->
         <span v-if="usernameLabel" class="user-label label-desktop" title="Signed in">
           <svg class="user-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path fill="currentColor"
@@ -23,17 +23,19 @@
           </svg>
           <span class="user-text">&nbsp;&nbsp;{{ usernameLabel }}</span>
         </span>
-        <button class="logout btn-desktop" @click="onLogout"><span>Logout</span></button>
 
-        <!-- Hamburger: ใช้ SVG แทน Font Awesome -->
+        <button class="logout-pill btn-desktop" @click="onLogout" title="Logout" aria-label="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </button>
+
+        <!-- Hamburger -->
         <button class="hamburger btn-mobile" :aria-expanded="open ? 'true' : 'false'" aria-controls="mobileMenu"
           @click="toggle">
-          <!-- bars -->
           <svg v-if="!open" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
             aria-hidden="true" focusable="false">
             <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
           </svg>
-          <!-- times (X) -->
           <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"
             focusable="false">
             <path
@@ -47,9 +49,7 @@
     <!-- Mobile overlay -->
     <div id="mobileMenu" class="overlay" v-show="open" @click.self="close">
       <nav class="mobile-panel">
-        <!-- ✅ Mobile only -->
         <div v-if="usernameLabel" class="m-user label-mobile">
-          <!-- ไอคอนเล็ก ๆ เพิ่มจังหวะสายตา (optional) -->
           <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
             <path
               d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z" />
@@ -61,11 +61,14 @@
         </RouterLink>
         <RouterLink to="/tracking" class="m-link" :class="{ active: isActive('/tracking') }" @click="close">Tracking
         </RouterLink>
-        <!-- <RouterLink to="/report" class="m-link" :class="{ active: isActive('/report') }" @click="close">Report
-        </RouterLink> -->
+        <RouterLink to="/manual" class="m-link" :class="{ active: isActive('/manual') }" @click="close">Manual
+        </RouterLink> <!-- ✅ -->
+        <!-- <RouterLink to="/report" class="m-link" :class="{ active: isActive('/report') }" @click="close">Report</RouterLink> -->
 
-        <!-- ✅ ใช้ปุ่ม mobile -->
-        <button class="m-logout" @click="onLogout">Logout</button>
+        <button class="m-logout logout-pill" @click="onLogout" title="Logout" aria-label="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </button>
       </nav>
     </div>
   </header>
@@ -81,16 +84,12 @@ const open = ref(false)
 const user = ref(null)
 const usernameLabel = computed(() => user.value?.username || '')
 
-
 onMounted(() => {
   const saved = localStorage.getItem('user')
-
   if (saved) {
-    try {
-      user.value = JSON.parse(saved)
-      //console.log('user.value: ', user.value.username)
-    }
-    catch {//
+    try { user.value = JSON.parse(saved) } catch {
+
+      //
     }
   }
 })
@@ -100,7 +99,7 @@ const toggle = () => (open.value = !open.value)
 const close = () => (open.value = false)
 const onLogout = () => {
   close()
-  localStorage.removeItem('user')   // ลบออกเวลา logout
+  localStorage.removeItem('user')
   router.push('/')
 }
 
@@ -110,6 +109,11 @@ const onKeydown = (e) => { if (e.key === 'Escape') close() }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
+
+<style scoped>
+/* (สไตล์เดิมทั้งหมดคงไว้) */
+/* ...โค้ดสไตล์ของคุณตามเดิม... */
+</style>
 
 <style scoped>
 /* ==== ขนาดตัวอักษรเท่ากับเมนู (1rem) ==== */
@@ -390,5 +394,35 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ปุ่ม Logout */
+.logout-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* ระยะห่างไอคอนกับข้อความ */
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .55);
+  background: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease;
+}
+
+/* Hover */
+.logout-pill:hover {
+  background: rgba(255, 255, 255, .1);
+  border-color: rgba(255, 255, 255, .85);
+}
+
+/* Mobile: ปุ่มเต็มกว้าง */
+.m-logout {
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
 }
 </style>
