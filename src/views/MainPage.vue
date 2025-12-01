@@ -16,9 +16,15 @@
             </thead>
             <tbody>
               <tr>
-                <td>{{ summary.totalVehicles }}</td>
-                <td>{{ summary.usedVehicles }}</td>
-                <td>{{ summary.unusedVehicles }}</td>
+                <td @click="openVehicleModal('total')" class="clickable">
+                  {{ summary.totalVehicles }}
+                </td>
+                <td @click="openVehicleModal('used')" class="clickable">
+                  {{ summary.usedVehicles }}
+                </td>
+                <td @click="openVehicleModal('unused')" class="clickable">
+                  {{ summary.unusedVehicles }}
+                </td>
               </tr>
               <tr>
                 <!-- <td>รายงานสรุปรายเดือน</td> -->
@@ -49,12 +55,15 @@
         </div>
       </section>
     </main>
+    <!-- ⭐⭐⭐ Popup Modal แสดงข้อมูลรถ ⭐⭐⭐ -->
+    <ModalVehicleList :show="showModal" :type="modalType" @close="showModal = false" />
   </div>
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import TopNav from '@/components/TopNav.vue'
+import ModalVehicleList from '@/components/ModalVehicleList.vue'
 import '@fortawesome/fontawesome-free/css/all.css'
 
 import {
@@ -65,6 +74,7 @@ import {
   Tooltip, Legend, Title,
 } from 'chart.js'
 import { useRouter } from 'vue-router'
+/* ---------------- Session Check ---------------- */
 const router = useRouter();
 const hasLocalStorage = ref(null)
 //-----check session
@@ -81,6 +91,14 @@ Chart.register(
   BarController, BarElement, CategoryScale, LinearScale,
   DoughnutController, ArcElement, Tooltip, Legend, Title,
 )
+/* ---------------- Modal State ---------------- */
+const showModal = ref(false)
+const modalType = ref(null)
+
+const openVehicleModal = (type) => {
+  modalType.value = type
+  showModal.value = true
+}
 
 // --- Plugin: แสดงตัวเลขบนกราฟ ---
 const valueLabelPlugin = {
@@ -226,19 +244,17 @@ const makeDonutChart = (canvas, labelsInput, countsInput) => {
     }
   })
 }
+/* ---------------- Summary ---------------- */
 const summary = ref({
   totalVehicles: 0,
   usedVehicles: 0,
   unusedVehicles: 0
 });
-
 const fetchSummary = async () => {
   const res = await fetch(import.meta.env.VITE_API_APP_URL + '/api/dashboard/summary');
   if (!res.ok) throw new Error('โหลด summary ล้มเหลว');
   summary.value = await res.json();
 };
-
-
 // --- Lifecycle ---
 onMounted(async () => {
   try {
@@ -352,6 +368,15 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   min-height: inherit;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: #e8fff4;
+  transition: 0.2s;
 }
 
 @media (min-width: 1280px) {
